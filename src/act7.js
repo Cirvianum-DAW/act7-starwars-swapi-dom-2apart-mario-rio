@@ -1,33 +1,110 @@
 import swapi from './swapi.js';
 
 //Exemple d'inicialització de la llista de pel·lícules. Falten dades!
-async function setMovieHeading(movieId, titleSelector) {
+async function setMovieHeading(movieId, titleSelector, infoSelector, directorSelector) {
   // Obtenim els elements del DOM amb QuerySelector
   const title = document.querySelector(titleSelector);
+  const info = document.querySelector(infoSelector)
+  const director = document.querySelector(directorSelector)
 
+  console.log(movieId)
+
+  if (!movieId) {
+    title.innerHTML = ''
+    info.innerHTML = ''
+    director.innerHTML = ''
+    return
+  }
   // Obtenim la informació de la pelicula
   const movieInfo = await swapi.getMovieInfo(movieId);
   // Injectem
-  title.innerHTML = movieInfo.name;
+  title.innerHTML = movieInfo.name
+  info.innerHTML = `Episode ${movieInfo.episodeID} - ${movieInfo.release}`
+  director.innerHTML = `Director: ${movieInfo.director}`
 }
 
-async function initMovieSelect(selector) {}
+async function initMovieSelect(selector) {
+  // Recuperem les dades del servidor
+  const movies = await swapi.listMoviesSorted();
+  //console.log(movies)
 
-function deleteAllCharacterTokens() {}
+  // Seleccionem el nostre element sobre el que hem d'actuar (menú desplegable "movies")
+  const select = document.querySelector(selector);
+
+  // Com que el primer element no forma part de la llista de pelis, vaig a fer-ho a mà
+  const option = document.createElement('option')
+  // Inicialitzo amb el valor per defecte que em demanen "Selecciona una pel·lícula"
+  option.value = '';
+  option.textContent = "Selecciona una pel·lícula"
+  select.appendChild(option)
+
+  // Com ho faig per anar passant la resta de pel·lícules?
+  // 'movies' és un array d'objectes per tant: for..of, map, foreach.
+
+  movies.forEach(movie => {
+    const option = document.createElement('option')
+    option.value = _filmIdToEpisodeId(movie.episodeID)
+    option.textContent = movie.name
+    select.appendChild(option)
+  })
+}
+
+// function deleteAllCharacterTokens() {
+// Ho hem implementat dins del handler -> _handleOnSelectMovieChanged
+// }
 
 // EVENT HANDLERS //
 
-function addChangeEventToSelectHomeworld() {}
+function addChangeEventToSelectHomeworld() { }
 
-async function _createCharacterTokens() {}
+async function _createCharacterTokens() { }
 
-function _addDivChild(parent, className, html) {}
+function _addDivChild(parent, className, html) { }
 
-function setMovieSelectCallbacks() {}
+function setMovieSelectCallbacks() {
+  // Busquem l'identificador del selector de pel·lícules 
+  const selectMovie = document.querySelector('#select-movie')
+  // Cada vegada que canviem ('change') el valor del selector cridem a la funció _handleOnSelectMovieChanged
+  // Sintaxi: element.addEventListener(event, function)
+  selectMovie.addEventListener('change', _handleOnSelectMovieChanged)
+}
 
-async function _handleOnSelectMovieChanged(event) {}
+async function _handleOnSelectMovieChanged(event) {
+  // Obtenir el valor del selector que en aquest cas conté l'id de la peli
+  const movieID = event.target.value
+  // Modifiquem la capçalera amb la informació corresponent amb aquesta peli
+  // Si existeix un "target"
+  await setMovieHeading(movieID, '.movie__title', '.movie__info', '.movie__director');
 
-function _filmIdToEpisodeId(episodeID) {}
+  // Ex4--> Esborrem l'anterior llistat de planetes
+  const selector = document.querySelector('#select-homeworld');
+  selector.innerHTML = '';
+
+  // Ex4 --> Ara pels planetes d'origen necessitem les dades de tots els personatges
+
+  const caracters = await swapi.getMovieCharactersAndHomeworlds(movieID);
+  //  Necessitem d'entrada una llista amb els planetes d'origen dels diferents personatges:
+  const planetes = caracters.characters.map((caracter) => caracter.homeworld);
+
+  // Evitem que apareguin duplicats amb la funció auxiliar
+  const planetesNoDuplicats = _removeDuplicatesAndSort(planetes);
+
+  // Amb la llista ja "neta" (i ordenada alfabèticament), podem cridar a la
+  // funció que actualitza el selector de "homeworlds"
+  _populateHomeWorldSelector(planetesNoDuplicats, selector);
+
+  document.querySelector('.list__characters').innerHTML = '';
+
+}
+
+function _filmIdToEpisodeId(episodeID) {
+  const mapping = episodeToMovieIDs.find(item => item.e === episodeID)
+  if (mapping) {
+    return mapping.m
+  } else {
+    return null
+  }
+}
 
 // "https://swapi.dev/api/films/1/" --> Episode_id = 4 (A New Hope)
 // "https://swapi.dev/api/films/2/" --> Episode_id = 5 (The Empire Strikes Back)
@@ -45,9 +122,23 @@ let episodeToMovieIDs = [
   { m: 6, e: 3 },
 ];
 
-function _setMovieHeading({ name, episodeID, release, director }) {}
+function _setMovieHeading({ name, episodeID, release, director }) { }
 
-function _populateHomeWorldSelector(homeworlds) {}
+function _populateHomeWorldSelector(homeworlds, selector) {
+  //console.log(homeworlds)
+  // Aquí implementem la lògica per "poblar" o injectar els planetes al desplegable "homeworld"
+  const option = document.createElement('option');
+  option.value = '';
+  option.textContent = 'Selecciona un homeworld';
+  selector.appendChild(option);
+
+  homeworlds.forEach(planeta => {
+    const option = document.createElement('option');
+    option.value = planeta;
+    option.textContent = planeta;
+    selector.appendChild(option);
+  })
+}
 
 /**
  * Funció auxiliar que podem reutilitzar: eliminar duplicats i ordenar alfabèticament un array.
@@ -56,16 +147,16 @@ function _removeDuplicatesAndSort(elements) {
   // Al crear un Set eliminem els duplicats
   const set = new Set(elements);
   // tornem a convertir el Set en un array
-  const array = Array.from(set);
+  const array = [...set].sort();
   // i ordenem alfabèticament
-  return array.sort(swapi._compareByName);
+  return array;
 }
 
 const act7 = {
   setMovieHeading,
   setMovieSelectCallbacks,
   initMovieSelect,
-  deleteAllCharacterTokens,
+  //deleteAllCharacterTokens,
   addChangeEventToSelectHomeworld,
 };
 
